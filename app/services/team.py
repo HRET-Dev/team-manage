@@ -1277,13 +1277,8 @@ class TeamService:
                     "error": f"撤回邀请失败: {revoke_result['error']}"
                 }
 
-            # 4. 更新成员数 (如果是按席位算的，撤回邀请应该减少)
-            if team.current_members > 0:
-                team.current_members -= 1
-            
-            if team.current_members < team.max_members:
-                if team.status == "full":
-                    team.status = "active"
+            # 4. 更新成员数 (不再手动 -1，同步最新数据)
+            await self.sync_team_info(team_id, db_session)
 
             await db_session.commit()
 
@@ -1391,10 +1386,8 @@ class TeamService:
                     "error": f"发送邀请失败: {invite_result['error']}"
                 }
 
-            # 5. 更新成员数
-            team.current_members += 1
-            if team.current_members >= team.max_members:
-                team.status = "full"
+            # 5. 更新成员数 (不再手动 +1，同步最新数据)
+            await self.sync_team_info(team_id, db_session)
 
             await db_session.commit()
 
@@ -1487,14 +1480,8 @@ class TeamService:
                     "error": f"删除成员失败: {delete_result['error']}"
                 }
 
-            # 4. 更新成员数
-            if team.current_members > 0:
-                team.current_members -= 1
-
-            # 更新状态
-            if team.current_members < team.max_members:
-                if team.status == "full":
-                    team.status = "active"
+            # 4. 更新成员数 (不再手动 -1，同步最新数据)
+            await self.sync_team_info(team_id, db_session)
 
             await db_session.commit()
 

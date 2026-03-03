@@ -281,10 +281,10 @@ class RedeemFlowService:
                     redemption_code.used_team_id = team_id_final
                     redemption_code.used_at = get_now()
 
-                    # 增加 Team 成员数占位
-                    team.current_members += 1
-                    if team.current_members >= team.max_members:
-                        team.status = "full"
+                    # 增加 Team 成员数占位 (不再手动 +1，由后续 sync 同步)
+                    # team.current_members += 1
+                    # if team.current_members >= team.max_members:
+                    #     team.status = "full"
                     
                     # 记录信息供 Phase 2 使用
                     final_team_account_id = team.account_id
@@ -338,6 +338,9 @@ class RedeemFlowService:
                             is_warranty_redemption=final_is_warranty
                         )
                         db_session.add(redemption_record)
+                        
+                        # 同步最新成员数
+                        await self.team_service.sync_team_info(team_id_final, db_session)
                     
                     logger.info(f"兑换成功: {email} 加入 Team {team_id_final}")
 
@@ -447,15 +450,18 @@ class RedeemFlowService:
                         redemption_code.used_team_id = None
                         redemption_code.used_at = None
 
-                # 回退 Team 计数
-                stmt = select(Team).where(Team.id == team_id).with_for_update()
-                result = await db_session.execute(stmt)
-                team = result.scalar_one_or_none()
-                if team:
-                    if team.current_members > 0:
-                        team.current_members -= 1
-                    if team.status == "full" and team.current_members < team.max_members:
-                        team.status = "active"
+                # 回退 Team 计数 (不再手动 -1，稍后由 sync 同步，或保持原样)
+                # if team.current_members > 0:
+                #     team.current_members -= 1
+                # if team.status == "full" and team.current_members < team.max_members:
+                #     team.status = "active"
+                
+                # 在回滚时可能由于各种原因失败，也尝试刷新一次成员数
+                # 注意：这里可能需要从 sync_team_info 获取最新数据
+                try:
+                    await self.team_service.sync_team_info(team_id, db_session)
+                except:
+                    pass
             logger.info(f"已回退兑换占位: code={code}, team_id={team_id}")
         except Exception as e:
             logger.error(f"回退兑换占位失败: {e}")
