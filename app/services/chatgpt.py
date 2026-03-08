@@ -263,6 +263,27 @@ class ChatGPTService:
         result = await self._make_request("DELETE", url, headers, db_session=db_session, identifier=identifier)
         return result
 
+    async def toggle_beta_feature(
+        self,
+        access_token: str,
+        account_id: str,
+        feature: str,
+        value: bool,
+        db_session: DBAsyncSession,
+        identifier: str = "default"
+    ) -> Dict[str, Any]:
+        """开启或关闭 Beta 功能"""
+        url = f"{self.BASE_URL}/accounts/{account_id}/beta_features"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}",
+            "chatgpt-account-id": account_id,
+            "oai-language": "zh-CN",
+            "sec-ch-ua-platform": '"Windows"'
+        }
+        json_data = {"feature": feature, "value": value}
+        return await self._make_request("POST", url, headers, json_data, db_session, identifier)
+
     async def get_account_info(
         self,
         access_token: str,

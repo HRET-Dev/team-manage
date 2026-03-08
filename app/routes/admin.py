@@ -504,6 +504,50 @@ async def revoke_team_invite(
         )
 
 
+@router.post("/teams/{team_id}/enable-device-auth")
+async def enable_team_device_auth(
+    team_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """
+    开启 Team 的设备代码身份验证
+
+    Args:
+        team_id: Team ID
+        db: 数据库会话
+        current_user: 当前用户（需要登录）
+
+    Returns:
+        结果
+    """
+    try:
+        logger.info(f"管理员开启 Team {team_id} 的设备身份验证")
+
+        result = await team_service.enable_device_code_auth(
+            team_id=team_id,
+            db_session=db
+        )
+
+        if not result["success"]:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content=result
+            )
+
+        return JSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"开启设备身份验证失败: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": f"操作失败: {str(e)}"
+            }
+        )
+
+
 # ==================== 兑换码管理路由 ====================
 
 @router.get("/codes", response_class=HTMLResponse)

@@ -1532,6 +1532,48 @@ class TeamService:
                 "error": f"删除成员失败: {str(e)}"
             }
 
+    async def enable_device_code_auth(
+        self,
+        team_id: int,
+        db_session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        开启 Team 的设备代码身份验证
+        """
+        try:
+            # 1. 查询 Team
+            stmt = select(Team).where(Team.id == team_id)
+            result = await db_session.execute(stmt)
+            team = result.scalar_one_or_none()
+
+            if not team:
+                return {"success": False, "error": f"Team ID {team_id} 不存在"}
+
+            # 2. 确保 AT Token 有效
+            access_token = await self.ensure_access_token(team, db_session)
+            if not access_token:
+                return {"success": False, "error": "Token 已过期且无法刷新"}
+
+            # 3. 调用 ChatGPT API 开启功能
+            result = await self.chatgpt_service.toggle_beta_feature(
+                access_token,
+                team.account_id,
+                "codex_device_code_auth",
+                True,
+                db_session,
+                identifier=team.email
+            )
+
+            if not result["success"]:
+                return {"success": False, "error": f"开启设备身份验证失败: {result.get('error', '未知错误')}"}
+
+            logger.info(f"Team {team_id} ({team.email}) 开启设备身份验证成功")
+            return {"success": True, "message": "设备代码身份验证开启成功"}
+
+        except Exception as e:
+            logger.error(f"开启设备身份验证失败: {e}")
+            return {"success": False, "error": f"异常: {str(e)}"}
+
     async def get_available_teams(
         self,
         db_session: AsyncSession
