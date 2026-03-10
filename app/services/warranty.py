@@ -174,11 +174,19 @@ class WarrantyService:
             can_reuse = False
 
             for record, code_obj, team in records_data:
-                # 同步 Team 状态
-                if team.status != "banned":
+                # 1.1 实时一致性校验 (自愈逻辑)
+                # 如果数据库有记录，但 API 列表里没你，说明是虚假成功，直接后台修复
+                if team.status != "banned" and team.status != "expired":
                     logger.info(f"质保查询: 正在实时测试 Team {team.id} ({team.team_name}) 的状态")
-                    await self.team_service.sync_team_info(team.id, db_session)
-                    # 同步后 team 对象的属性会自动更新
+                    sync_res = await self.team_service.sync_team_info(team.id, db_session)
+                    member_emails = [m.lower() for m in sync_res.get("member_emails", [])]
+                    
+                    if record.email.lower() not in member_emails:
+                        logger.warning(f"自愈逻辑(查询触发): 发现孤儿记录 (Email: {record.email}, Team: {team.id}), API 查无此人。正在执行自动清理。")
+                        await db_session.delete(record)
+                        await db_session.commit()
+                        # 跳过这条无效记录，提示用户重新兑换
+                        continue 
 
                 # 动态计算/提取质保信息
                 expiry_date = code_obj.warranty_expires_at
@@ -238,6 +246,13 @@ class WarrantyService:
                 # 这里为了简单直接复用逻辑判断
                 can_reuse = True
 
+            # 4. 最终状态判定
+            message = "查询成功"
+            if has_any_warranty and not final_records and records_data:
+                # 这种情况说明刚才所有记录都被自愈逻辑删除了（全是虚假成功）
+                message = "系统发现您的兑换记录存在同步异常，已为您自动修复！您的兑换码已恢复，请返回兑换页面重新提交一次即可。"
+                can_reuse = True
+
             return {
                 "success": True,
                 "has_warranty": has_any_warranty,
@@ -247,7 +262,7 @@ class WarrantyService:
                 "can_reuse": can_reuse,
                 "original_code": primary_code,
                 "records": final_records,
-                "message": "查询成功"
+                "message": message
             }
 
         except Exception as e:

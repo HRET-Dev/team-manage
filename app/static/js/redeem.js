@@ -240,11 +240,22 @@ function showSuccessResult(data) {
                 ` : ''}
             </div>
 
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; text-align: left;">
+                <i data-lucide="mail" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 5px;"></i>
                 邀请邮件已发送到您的邮箱，请查收并按照邮件指引接受邀请。
             </p>
 
-            <button onclick="location.reload()" class="btn btn-primary">
+            <div style="margin-bottom: 2rem; border-top: 1px solid var(--border-base); padding-top: 1.5rem;">
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    <strong>没收到邀请邮件？</strong><br>
+                    如果您在 1-5 分钟后仍未收到邮件（或被拦截），请前往“质保查询”进行自助修复。
+                </p>
+                <button onclick="goToWarrantyFromSuccess()" class="btn btn-secondary" style="width: 100%; border-style: dashed;">
+                    <i data-lucide="shield"></i> 前往质保查询 / 自助修复
+                </button>
+            </div>
+
+            <button onclick="location.reload()" class="btn btn-primary" style="width: 100%;">
                 <i data-lucide="refresh-cw"></i> 再次兑换
             </button>
         </div>
@@ -352,6 +363,38 @@ async function checkWarranty() {
 // 显示质保查询结果
 function showWarrantyResult(data) {
     const warrantyContent = document.getElementById('warrantyContent');
+
+    // 处理“虚假成功自愈”后的特殊提示
+    if ((!data.records || data.records.length === 0) && data.can_reuse) {
+        warrantyContent.innerHTML = `
+            <div class="result-info" style="text-align: center; padding: 2rem;">
+                <div class="result-icon"><i data-lucide="check-circle" style="width: 56px; height: 56px; color: var(--success);"></i></div>
+                <div class="result-title" style="font-size: 1.25rem; margin: 1.2rem 0; color: var(--success);">修复成功！</div>
+                <div class="result-message" style="color: var(--text-primary); background: rgba(34, 197, 94, 0.05); padding: 1.2rem; border-radius: 12px; border: 1px solid rgba(34, 197, 94, 0.2); line-height: 1.6;">
+                    ${escapeHtml(data.message || '系统检测到异常并已自动修复')}
+                </div>
+                
+                <div style="margin-top: 2rem; text-align: left; background: rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 12px; border: 1px dashed var(--border-base);">
+                    <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.8rem;">请复制您的兑换码返回主页重试：</div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <input type="text" value="${escapeHtml(data.original_code)}" readonly 
+                            style="flex: 1; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border-base); border-radius: 8px; color: var(--text-primary); font-family: monospace; font-size: 1.1rem;">
+                        <button onclick="copyWarrantyCode('${escapeHtml(data.original_code)}')" class="btn btn-secondary" style="white-space: nowrap;">
+                            <i data-lucide="copy"></i> 复制
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <button onclick="backToStep1()" class="btn btn-primary" style="width: 100%;">
+                        <i data-lucide="arrow-left"></i> 立即返回重兑
+                    </button>
+                </div>
+            </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+        return;
+    }
 
     if (!data.records || data.records.length === 0) {
         warrantyContent.innerHTML = `
@@ -596,4 +639,25 @@ async function enableUserDeviceAuth(teamId, code, email) {
         btn.innerHTML = originalContent;
         if (window.lucide) lucide.createIcons();
     }
+}
+
+// 从成功页面跳转到质保查询
+function goToWarrantyFromSuccess() {
+    const warrantyInput = document.getElementById('warrantyInput');
+    // 优先填入邮箱，因为邮箱查询更全面
+    warrantyInput.value = currentEmail || currentCode || '';
+
+    // 切换视图
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step1').classList.add('active');
+    document.getElementById('step3').style.display = 'none';
+
+    // 滚动到质保区域
+    const warrantySection = document.querySelector('.warranty-section');
+    if (warrantySection) {
+        warrantySection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 自动触发查询
+    checkWarranty();
 }
