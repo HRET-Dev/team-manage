@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from sqlalchemy import select, and_, or_, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models import RedemptionCode, RedemptionRecord, Team
 from app.utils.time_utils import get_now
@@ -71,6 +72,7 @@ class WarrantyService:
                 # 通过兑换码查找所有关联记录
                 stmt = (
                     select(RedemptionRecord, RedemptionCode, Team)
+                    .options(selectinload(RedemptionRecord.redemption_code), selectinload(RedemptionRecord.team))
                     .join(RedemptionCode, RedemptionRecord.code == RedemptionCode.code)
                     .join(Team, RedemptionRecord.team_id == Team.id)
                     .where(RedemptionCode.code == code)
@@ -130,6 +132,7 @@ class WarrantyService:
                 # 通过邮箱查找所有兑换记录
                 stmt = (
                     select(RedemptionRecord, RedemptionCode, Team)
+                    .options(selectinload(RedemptionRecord.redemption_code), selectinload(RedemptionRecord.team))
                     .join(RedemptionCode, RedemptionRecord.code == RedemptionCode.code)
                     .join(Team, RedemptionRecord.team_id == Team.id)
                     .where(RedemptionRecord.email == email)
