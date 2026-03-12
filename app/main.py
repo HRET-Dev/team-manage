@@ -24,6 +24,7 @@ APP_DIR = BASE_DIR / "app"
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
