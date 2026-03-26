@@ -15,6 +15,7 @@ from app.dependencies.auth import require_admin
 from app.services.team import TeamService
 from app.services.redemption import RedemptionService
 from app.utils.time_utils import get_now
+from app.utils.templating import render_template_response
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +125,11 @@ async def admin_dashboard(
             "used_codes": code_stats["used"]
         }
 
-        return templates.TemplateResponse(
-            "admin/index.html",
-            {
-                "request": request,
+        return render_template_response(
+            templates=templates,
+            request=request,
+            template_name="admin/index.html",
+            context={
                 "user": current_user,
                 "active_page": "dashboard",
                 "teams": teams_result.get("teams", []),
@@ -739,10 +741,11 @@ async def codes_list_page(
                 dt = datetime.fromisoformat(code["used_at"])
                 code["used_at"] = dt.strftime("%Y-%m-%d %H:%M")
 
-        return templates.TemplateResponse(
-            "admin/codes/index.html",
-            {
-                "request": request,
+        return render_template_response(
+            templates=templates,
+            request=request,
+            template_name="admin/codes/index.html",
+            context={
                 "user": current_user,
                 "active_page": "codes",
                 "codes": codes,
@@ -1196,10 +1199,11 @@ async def records_page(
             except:
                 pass
 
-        return templates.TemplateResponse(
-            "admin/records/index.html",
-            {
-                "request": request,
+        return render_template_response(
+            templates=templates,
+            request=request,
+            template_name="admin/records/index.html",
+            context={
                 "user": current_user,
                 "active_page": "records",
                 "records": paginated_records,
@@ -1295,10 +1299,11 @@ async def settings_page(
         proxy_config = await settings_service.get_proxy_config(db)
         log_level = await settings_service.get_log_level(db)
 
-        return templates.TemplateResponse(
-            "admin/settings/index.html",
-            {
-                "request": request,
+        return render_template_response(
+            templates=templates,
+            request=request,
+            template_name="admin/settings/index.html",
+            context={
                 "user": current_user,
                 "active_page": "settings",
                 "proxy_enabled": proxy_config["enabled"],

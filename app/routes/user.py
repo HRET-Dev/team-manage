@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
+from app.utils.templating import render_template_response
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +41,11 @@ async def redeem_page(
 
         logger.info(f"用户访问兑换页面，剩余车位: {remaining_spots}")
 
-        return templates.TemplateResponse(
-            "user/redeem.html",
-            {
-                "request": request,
+        return render_template_response(
+            templates=templates,
+            request=request,
+            template_name="user/redeem.html",
+            context={
                 "remaining_spots": remaining_spots
             }
         )
