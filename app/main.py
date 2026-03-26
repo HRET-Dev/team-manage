@@ -17,6 +17,7 @@ from app.routes import redeem, auth, admin, api, user, warranty
 from app.config import settings
 from app.database import init_db, close_db, AsyncSessionLocal
 from app.services.auth import auth_service
+from app.utils.templating import render_template_response
 
 # 获取项目根目录
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -151,10 +152,11 @@ app.include_router(api.router)
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     """登录页面"""
-    return templates.TemplateResponse(
-        request,
-        "auth/login.html",
-        {"user": None}
+    return render_template_response(
+        templates=templates,
+        request=request,
+        template_name="auth/login.html",
+        context={"user": None}
     )
 
 
