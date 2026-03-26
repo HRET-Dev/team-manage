@@ -737,6 +737,59 @@ class RedemptionService:
         """更新兑换码信息"""
         return await self.bulk_update_codes([code], db_session, has_warranty, warranty_days)
 
+    async def update_code_warranty_expiry(
+        self,
+        code: str,
+        db_session: AsyncSession,
+        warranty_expires_at: Optional[datetime]
+    ) -> Dict[str, Any]:
+        """
+        更新单个兑换码的质保到期时间
+
+        Args:
+            code: 兑换码
+            db_session: 数据库会话
+            warranty_expires_at: 质保到期时间，None 表示清空
+        """
+        try:
+            stmt = select(RedemptionCode).where(RedemptionCode.code == code)
+            result = await db_session.execute(stmt)
+            redemption_code = result.scalar_one_or_none()
+
+            if not redemption_code:
+                return {
+                    "success": False,
+                    "message": None,
+                    "error": f"兑换码 {code} 不存在"
+                }
+
+            if warranty_expires_at is not None and not redemption_code.has_warranty:
+                return {
+                    "success": False,
+                    "message": None,
+                    "error": "该兑换码不是质保码，无法设置质保到期时间"
+                }
+
+            redemption_code.warranty_expires_at = warranty_expires_at
+            await db_session.commit()
+
+            logger.info(f"管理员更新兑换码 {code} 质保到期时间: {warranty_expires_at}")
+            return {
+                "success": True,
+                "message": "质保到期时间更新成功",
+                "error": None,
+                "code": code,
+                "warranty_expires_at": warranty_expires_at.isoformat() if warranty_expires_at else None
+            }
+        except Exception as e:
+            await db_session.rollback()
+            logger.error(f"更新兑换码质保到期时间失败: {e}")
+            return {
+                "success": False,
+                "message": None,
+                "error": f"更新质保到期时间失败: {str(e)}"
+            }
+
     async def withdraw_record(
         self,
         record_id: int,

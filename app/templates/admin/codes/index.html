@@ -160,7 +160,7 @@
                                 <i data-lucide="copy" style="width: 14px; height: 14px;"></i>
                             </button>
                             <button
-                                onclick="editCode('{{ code.code }}', {{ 'true' if code.has_warranty else 'false' }}, {{ code.warranty_days or 30 }})"
+                                onclick='editCode({{ code.code|tojson }}, {{ code.has_warranty|tojson }}, {{ (code.warranty_days or 30)|tojson }}, {{ code.warranty_expires_at|tojson }})'
                                 class="btn btn-sm btn-icon btn-minimal btn-info" title="编辑">
                                 <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                             </button>
@@ -347,6 +347,11 @@
                     <label>质保时长 (天) *</label>
                     <input type="number" id="edit-warranty-days" name="warrantyDays" class="form-control" value="30"
                         min="1" max="3650">
+                </div>
+                <div class="form-group">
+                    <label>质保到期时间（可手动修正）</label>
+                    <input type="datetime-local" id="edit-warranty-expires-at" name="warrantyExpiresAt" class="form-control">
+                    <small class="form-text">留空表示清空质保到期时间；仅质保码可设置。</small>
                 </div>
                 <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">保存修改</button>
             </form>
@@ -633,7 +638,15 @@
     }
 
     // 编辑兑换码
-    function editCode(code, hasWarranty, warrantyDays) {
+    function toDateTimeLocalValue(isoString) {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        if (Number.isNaN(d.getTime())) return '';
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    function editCode(code, hasWarranty, warrantyDays, warrantyExpiresAt) {
         document.getElementById('edit-code').value = code;
         document.getElementById('edit-code-display').value = code;
 
@@ -642,6 +655,9 @@
 
         const warrantyDaysInput = document.getElementById('edit-warranty-days');
         warrantyDaysInput.value = warrantyDays || 30;
+
+        const warrantyExpiresInput = document.getElementById('edit-warranty-expires-at');
+        warrantyExpiresInput.value = toDateTimeLocalValue(warrantyExpiresAt);
 
         // 触发显示/隐藏
         toggleWarrantyDays(hasWarrantyCheckbox, 'edit-warranty-days-group');
@@ -654,9 +670,11 @@
         const code = document.getElementById('edit-code').value;
         const has_warranty = document.getElementById('edit-has-warranty').checked;
         const warranty_days = parseInt(document.getElementById('edit-warranty-days').value) || 30;
+        const warranty_expires_at_raw = document.getElementById('edit-warranty-expires-at').value;
+        const warranty_expires_at = warranty_expires_at_raw || null;
 
         try {
-            const response = await fetch(`/admin/codes/${encodeURIComponent(code)}/update`, {
+            const updateResponse = await fetch(`/admin/codes/${encodeURIComponent(code)}/update`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -667,14 +685,30 @@
                 })
             });
 
-            const result = await response.json();
+            const updateResult = await updateResponse.json();
 
-            if (response.ok && result.success) {
+            if (!(updateResponse.ok && updateResult.success)) {
+                showToast(updateResult.error || '更新失败', 'error');
+                return;
+            }
+
+            const expiryResponse = await fetch(`/admin/codes/${encodeURIComponent(code)}/warranty-expiry`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    warranty_expires_at: has_warranty ? warranty_expires_at : null
+                })
+            });
+            const expiryResult = await expiryResponse.json();
+
+            if (expiryResponse.ok && expiryResult.success) {
                 showToast('更新成功', 'success');
                 hideModal('editCodeModal');
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                showToast(result.error || '更新失败', 'error');
+                showToast(expiryResult.error || '质保到期时间更新失败', 'error');
             }
         } catch (error) {
             showToast('网络错误', 'error');
