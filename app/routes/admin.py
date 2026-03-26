@@ -4,6 +4,7 @@
 """
 import logging
 from typing import Optional, List
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 import json
@@ -83,6 +84,13 @@ class BulkCodeUpdateRequest(BaseModel):
     codes: List[str] = Field(..., description="兑换码列表")
     has_warranty: bool = Field(..., description="是否为质保兑换码")
     warranty_days: Optional[int] = Field(None, description="质保天数")
+
+class CodeWarrantyExpiryUpdateRequest(BaseModel):
+    """兑换码质保到期时间更新请求"""
+    warranty_expires_at: Optional[datetime] = Field(
+        None,
+        description="质保到期时间，传 null 表示清空"
+    )
 
 
 class BulkActionRequest(BaseModel):
@@ -1048,6 +1056,34 @@ async def bulk_update_codes(
             has_warranty=update_data.has_warranty,
             warranty_days=update_data.warranty_days
         )
+        if not result["success"]:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content=result
+            )
+        return JSONResponse(content=result)
+    except Exception as e:
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "error": str(e)}
+        )
+
+
+@router.post("/codes/{code}/warranty-expiry")
+async def update_code_warranty_expiry(
+    code: str,
+    update_data: CodeWarrantyExpiryUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """更新兑换码质保到期时间"""
+    try:
+        result = await redemption_service.update_code_warranty_expiry(
+            code=code,
+            db_session=db,
+            warranty_expires_at=update_data.warranty_expires_at
+        )
+
         if not result["success"]:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
