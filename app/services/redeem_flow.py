@@ -295,13 +295,19 @@ class RedeemFlowService:
                                 raise Exception("Team账号受限: 官方拦截下发(响应空列表)，请检查账单/风控状态")
 
                             # 成功逻辑
+                            now = get_now()
+                            is_first_redemption = rc.used_at is None
+
                             rc.status = "used"
                             rc.used_by_email = email
                             rc.used_team_id = team_id_final
-                            rc.used_at = get_now()
-                            if rc.has_warranty:
+                            # 质保码可重复兑换，但首次兑换时间不应在重复兑换时被重置
+                            if is_first_redemption:
+                                rc.used_at = now
+                            if rc.has_warranty and rc.warranty_expires_at is None:
+                                # 仅在首次激活质保时写入到期时间，后续质保重兑不延长质保期
                                 days = rc.warranty_days or 30
-                                rc.warranty_expires_at = get_now() + timedelta(days=days)
+                                rc.warranty_expires_at = now + timedelta(days=days)
 
                             record = RedemptionRecord(
                                 email=email,
