@@ -289,6 +289,11 @@ class RedeemFlowService:
                                     await db_session.rollback()
                                     raise Exception(err)
 
+                            invite_data = invite_res.get("data", {})
+                            if "account_invites" in invite_data and not invite_data.get("account_invites"):
+                                await db_session.rollback()
+                                raise Exception("Team账号受限: 官方拦截下发(响应空列表)，请检查账单/风控状态")
+
                             # 成功逻辑
                             rc.status = "used"
                             rc.used_by_email = email
