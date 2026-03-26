@@ -125,6 +125,7 @@ async def admin_dashboard(
         }
 
         return templates.TemplateResponse(
+            request,
             "admin/index.html",
             {
                 "request": request,
@@ -740,6 +741,7 @@ async def codes_list_page(
                 code["used_at"] = dt.strftime("%Y-%m-%d %H:%M")
 
         return templates.TemplateResponse(
+            request,
             "admin/codes/index.html",
             {
                 "request": request,
@@ -1197,6 +1199,7 @@ async def records_page(
                 pass
 
         return templates.TemplateResponse(
+            request,
             "admin/records/index.html",
             {
                 "request": request,
@@ -1296,6 +1299,7 @@ async def settings_page(
         log_level = await settings_service.get_log_level(db)
 
         return templates.TemplateResponse(
+            request,
             "admin/settings/index.html",
             {
                 "request": request,
