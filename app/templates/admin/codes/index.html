@@ -107,6 +107,7 @@
                     <th>使用者邮箱</th>
                     <th>使用时间</th>
                     <th>质保</th>
+                    <th>质保到期时间</th>
                     <th>质保时长</th>
                     <th style="text-align: right;">操作</th>
                 </tr>
@@ -144,6 +145,13 @@
                         <span class="status-badge status-info">是</span>
                         {% else %}
                         <span class="status-badge" style="background: #f3f4f6; color: #6b7280;">否</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if code.has_warranty %}
+                        <span style="font-size: 0.875rem;">{{ code.warranty_expires_at.replace('T', ' ')[:19] if code.warranty_expires_at else '-' }}</span>
+                        {% else %}
+                        -
                         {% endif %}
                     </td>
                     <td>
@@ -407,11 +415,11 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // Init Column Toggler
-        initColumnToggler('.data-table', 'codes_list_columns');
+        initColumnToggler('.data-table', 'codes_list_columns', ['质保时长']);
     });
 
     // Column Toggler Logic & Pagination
-    function initColumnToggler(tableSelector, storageKey) {
+    function initColumnToggler(tableSelector, storageKey, defaultHiddenHeaders = []) {
         const table = document.querySelector(tableSelector);
         if (!table) return;
 
@@ -421,8 +429,20 @@
 
         container.innerHTML = '<div class="dropdown-header">显示/隐藏列</div>';
 
-        // Load saved preferences
-        const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        // Load saved preferences; first visit can apply default hidden headers
+        const rawSaved = localStorage.getItem(storageKey);
+        let saved = rawSaved ? JSON.parse(rawSaved) : null;
+
+        if (!saved) {
+            saved = [];
+            headers.forEach((th, index) => {
+                const text = th.innerText.trim();
+                if (defaultHiddenHeaders.includes(text)) {
+                    saved.push(index);
+                }
+            });
+            localStorage.setItem(storageKey, JSON.stringify(saved));
+        }
 
         headers.forEach((th, index) => {
             const text = th.innerText.trim();
